@@ -169,7 +169,11 @@ bold-lead bullets) before its `v*` tag, since the release publishes it as the no
 - WFA-28: `Data/Heights.lua` (spawn heights): classic-db `creature` spawns and `gameobject` spawns of types 2, 3 and 10,
   matched to the walking maps' surfaces by `tools/bake_heights.lua`; only spawns standing within a cell of another
   surface more than ZTOL away are kept. QuestieDB's spawns are zone fractions with no height, so a journey to a mob in
-  a mine ended on the hill above it. Forever's own NPCs are not in classic-db and keep the cheapest surface.
+  a mine ended on the hill above it. Forever's own NPCs are not in classic-db and keep the cheapest surface. A still
+  NPC with a service or a quest whose floor the walking maps do not hold at all (no surface within ZTOL of it in the
+  cells around it) is kept with its own height, so its journey is walked to the mapped ground on its level and the
+  rest is told apart. `tests/fixtures/city_places.lua` (`tools/gen_city_fixture.py`) samples the same spawns in the
+  capitals for `tests/city_walks_spec.lua`; it is a test fixture and does not ship.
 - WFA-28: `Data/IdleSpawns.lua` (where NPCs stand still and which one they are): the same classic-db spawns and bake,
   keeping every `MovementType` 0 creature with the height of the surface it stands on, keyed by creature ID because
   that is how UnitGUID names an NPC (UnitPosition answers for the player's group only). The client gives no player

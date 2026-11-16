@@ -50,4 +50,7 @@ Not specs: run them with `luajit -joff`.
 
 - `walk_sim.lua` follows a real journey's geometry at walking speed.
 - `nav_compare.lua` compares the shipped walking maps with another source snapshot.
+- `nav_flat.lua` is plain A* over the walking grid with no entrance graph, the walk `city_walks_spec` holds the
+  search to. `fixtures/city_places.lua` is where NPCs stand in the six capitals, from the pinned classic-db
+  (`python3 tools/gen_city_fixture.py`); `docs/city-navigation.md` says what the spec's numbers mean.
 - `test_typecheck.py` is the Python regression test for the multi-value lint behind `tools/typecheck.sh`.
