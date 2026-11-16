@@ -582,3 +582,101 @@ class LinkedPortalBoxTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeptEdgesTest(unittest.TestCase):
+    """The intra-cluster edges a cluster keeps (gen_nav.kept_edges)."""
+
+    @staticmethod
+    def walked(nodes, found, mode):
+        """Every pair's cost over the kept edges alone (Floyd-Warshall)."""
+        cost = {(a, b): 0.0 if a == b else found.get((a, b), (1e18, 1e18))[mode] for a in nodes for b in nodes}
+        for m in nodes:
+            for a in nodes:
+                for b in nodes:
+                    cost[a, b] = min(cost[a, b], cost[a, m] + cost[m, b])
+        return cost
+
+    def test_dropped_hops_do_not_compound(self):
+        # Each pair below has a third entrance within 2% of the way, so the rule that looked only at the grid's own
+        # costs dropped a -> b for x, a -> x for y and x -> b for w, leaving a -> b 3.5% long with nothing to bound
+        # it; in Stormwind the same chain reached 29%.
+        dist = {
+            ("a", "b"): 100.0,
+            ("a", "x"): 50.0,
+            ("x", "b"): 51.9,
+            ("a", "y"): 25.0,
+            ("y", "x"): 25.9,
+            ("x", "w"): 26.0,
+            ("w", "b"): 26.7,
+            ("y", "b"): 78.0,
+            ("a", "w"): 76.5,
+            ("y", "w"): 52.5,
+        }
+        nodes = sorted({n for pair in dist for n in pair})
+        found, capped = gen_nav.kept_edges(nodes, [dist, dist])
+        self.assertEqual(capped, 1.0)
+        walked = self.walked(nodes, found, 0)
+        for pair, d in dist.items():
+            self.assertLessEqual(walked[pair], d * gen_nav.PRUNE + 1e-9, pair)
+
+    def test_every_pair_stays_within_the_bound_under_every_weight(self):
+        # Entrances scattered round a cluster's border, costs a little off their straight lines and different each
+        # way, as water and drops make them.
+        nodes = list(range(24))
+        at = {n: (math.cos(n * 2.399) * 250 + n * 3, math.sin(n * 1.7) * 250 - n * 2) for n in nodes}
+
+        def table(seed):
+            out = {}
+            for a in nodes:
+                for b in nodes:
+                    if a != b:
+                        wobble = 1 + ((a * 31 + b * 17 + seed) % 23) / 100
+                        out[a, b] = math.dist(at[a], at[b]) * wobble
+            return out
+
+        dists = [table(1), table(7)]
+        found, _ = gen_nav.kept_edges(nodes, dists)
+        self.assertLess(len(found), len(dists[0]), "a spanner drops the edges its kept ones already serve")
+        for mode, dist in enumerate(dists):
+            walked = self.walked(nodes, found, mode)
+            for pair, d in dist.items():
+                self.assertLessEqual(walked[pair], d * gen_nav.PRUNE + 1e-9, (mode, pair))
+        for pair, costs in found.items():
+            self.assertEqual(costs, (dists[0][pair], dists[1][pair]), "a kept edge carries the pair's own costs")
+
+    def test_an_edge_only_one_weight_needs_is_kept(self):
+        # Swimming, a -> b by way of x is as short as the straight walk; walking on water it is not.
+        swim = {("a", "x"): 40.0, ("x", "b"): 60.0, ("a", "b"): 100.0}
+        water_walk = {("a", "x"): 40.0, ("x", "b"): 60.0, ("a", "b"): 70.0}
+        found, _ = gen_nav.kept_edges(["a", "b", "x"], [swim, water_walk])
+        self.assertEqual(found[("a", "b")], (100.0, 70.0))
+
+    def test_a_pair_the_grid_does_not_join_gets_no_edge(self):
+        dist = {("a", "b"): 30.0}
+        found, _ = gen_nav.kept_edges(["a", "b", "c"], [dist, dist])
+        self.assertEqual(set(found), {("a", "b")}, "one-way, and nothing reaches c")
+
+    def test_a_full_entrance_reaches_the_rest_through_its_nearest(self):
+        # A hub in the middle of a ring: with room for three edges it keeps its three nearest, and the walk to
+        # the others goes through them, a little long and never unbounded.
+        ring = [f"r{i}" for i in range(8)]
+        at = {
+            name: (math.cos(i * math.pi / 4) * (100 + i), math.sin(i * math.pi / 4) * (100 + i))
+            for i, name in enumerate(ring)
+        }
+        at["hub"] = (0.0, 0.0)
+        nodes = sorted(at)
+        dist = {(a, b): math.dist(at[a], at[b]) for a in nodes for b in nodes if a != b}
+        free, _ = gen_nav.kept_edges(nodes, [dist, dist])
+        self.assertEqual(sum(1 for a, _ in free if a == "hub"), 8, "nothing else stands between the hub and the ring")
+        room = dict.fromkeys(nodes, 63) | {"hub": 3}
+        with patch.object(gen_nav, "CAPPED", 3.0):
+            found, capped = gen_nav.kept_edges(nodes, [dist, dist], room)
+        self.assertEqual(sorted(b for a, b in found if a == "hub"), ["r0", "r1", "r2"], "the three nearest")
+        self.assertGreater(capped, gen_nav.PRUNE)
+        walked = self.walked(nodes, found, 0)
+        for b in ring:
+            self.assertLessEqual(walked["hub", b], dist["hub", b] * capped + 1e-9)
+        with self.assertRaises(ValueError):
+            gen_nav.kept_edges(nodes, [dist, dist], room)

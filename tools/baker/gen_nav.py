@@ -57,7 +57,9 @@ SWIM = 3.0
 WATER_WALK = 1.0  # walking on water is running
 WEIGHTS = (SWIM, WATER_WALK)  # every edge carries one cost per weight, in this order
 ENTRANCE_RUN = 20  # longest border run (cells) served by one entrance
-PRUNE = 1.02  # drop an intra edge when a two-hop path is within 2%
+PRUNE = 1.02  # drop an intra edge while the edges already kept serve its pair within 2%
+DEGREE = 63  # a node's edges are counted in one symbol of its graph record
+CAPPED = 1.1  # the furthest a pair may stand from its own cost when DEGREE, not PRUNE, dropped its edge
 MIN_COMPONENT = 500
 DIRS = {(1, 0): 0, (-1, 0): 1, (0, 1): 2, (0, -1): 3, (1, 1): 4, (1, -1): 5, (-1, 1): 6, (-1, -1): 7}
 MARGIN = 1.0  # a step between cells may use navmesh this far outside the two cells (yd)
@@ -884,6 +886,7 @@ def strong_components(order, out):
 
 
 _HPA = None  # (grid, cuts, nodes) for the forked graph workers, set by grid_hpa before each pool starts
+_CROSSINGS = None  # node -> the crossings out of it, for the same workers: they bound its intra edges
 
 
 def run_clusters(work, keys, jobs):
@@ -907,14 +910,72 @@ def cluster_regions(k):
     return list(strong_components(members, out).items())
 
 
+def kept_edges(el, dists, room=None):
+    """The intra-cluster edges a cluster keeps, from every pair's walking cost under each of WEIGHTS: a greedy
+    spanner. Pairs are taken shortest first, and a pair's edge is dropped only while the edges already kept walk
+    it within PRUNE under every weight, so every pair the grid joins stays within PRUNE of its own cost.
+
+    The rule this replaces dropped a pair whenever some third entrance stood within PRUNE of the way, measured
+    on the grid and not on the edges kept. Those two hops could themselves be dropped for a third and a fourth,
+    so the loss compounded without a bound: Stormwind's Trade District reached the Park 29% longer than the
+    grid walks it, round a second doorway on the border it had just crossed.
+
+    room is how many edges each entrance may still take (DEGREE less the crossings it already has); an entrance
+    with none left keeps its nearest pairs and reaches the rest through them. Returns the edges and the worst
+    ratio of kept to own cost among the pairs that limit dropped, 1.0 when it dropped none; past CAPPED the
+    bake fails rather than ship a walk that far off."""
+    index = {c: i for i, c in enumerate(el)}
+    n = len(el)
+    pairs = []
+    for a in el:
+        for b in el:
+            if a == b:
+                continue
+            # Weights change costs, never reachability, so a pair is reached under all of them or none.
+            ds = [dist.get((a, b)) for dist in dists]
+            if ds[0] is not None:
+                pairs.append((ds[0], a, b, tuple(cast(list[float], ds))))
+    pairs.sort()
+    # kept[mode][i][j]: the cost from entrance i to entrance j over the edges kept so far.
+    kept = []
+    for _ in dists:
+        rows = [[1e18] * n for _ in range(n)]
+        for i in range(n):
+            rows[i][i] = 0.0
+        kept.append(rows)
+    found, full, used = {}, [], defaultdict(int)
+    for _, a, b, ds in pairs:
+        ia, ib = index[a], index[b]
+        if all(rows[ia][ib] <= d * PRUNE for rows, d in zip(kept, ds, strict=True)):
+            continue
+        if room is not None and used[a] >= room[a]:
+            full.append((ia, ib, ds))
+            continue
+        found[(a, b)] = ds
+        used[a] += 1
+        for rows, d in zip(kept, ds, strict=True):
+            onward = rows[ib]
+            for i in range(n):
+                via = rows[i][ia] + d
+                # The costs kept are shortest paths, so an edge that does not shorten the way to b shortens no
+                # way through b either.
+                if via < rows[i][ib]:
+                    rows[i] = [x if x <= via + y else via + y for x, y in zip(rows[i], onward, strict=True)]
+    worst = max(
+        (rows[ia][ib] / d for ia, ib, ds in full for rows, d in zip(kept, ds, strict=True) if d > 0), default=1.0
+    )
+    if worst > CAPPED:
+        raise ValueError(f"an entrance's edge limit leaves a pair {worst:.2f} times its own cost; it allows {CAPPED}")
+    return found, worst
+
+
 def cluster_edges(k):
-    """Cluster k's intra-cluster edges between its entrances: Dijkstra under each of WEIGHTS, dropped when a
-    two-hop path is within PRUNE under every weight."""
+    """Cluster k's intra-cluster edges between its entrances: Dijkstra under each of WEIGHTS, then the spanner
+    kept_edges chooses, with the worst ratio its edge limit left."""
     assert _HPA is not None
     grid, cuts, nodes = _HPA
     assert nodes is not None
     g = lambda gx, gy: grid[gx * GH + gy]  # noqa: E731
-    found = {}
     cells = nodes[k]
     box = cluster_box(k)
     dists = []
@@ -941,23 +1002,8 @@ def cluster_edges(k):
                         gd[v] = du + c
                         heapq.heappush(pq, (du + c, v))
         dists.append(dist)
-    el = sorted(cells)
-    for a in el:
-        for b in el:
-            if a == b:
-                continue
-            # Weights change costs, never reachability, so a pair is reached under all of them or none.
-            ds = [dist.get((a, b)) for dist in dists]
-            if ds[0] is None:
-                continue
-            ds = cast(list[float], ds)
-            if all(
-                any(dist.get((a, x), 1e18) + dist.get((x, b), 1e18) <= d * PRUNE for x in el if x not in (a, b))
-                for dist, d in zip(dists, ds, strict=False)
-            ):
-                continue
-            found[(a, b)] = tuple(ds)
-    return found
+    room = None if _CROSSINGS is None else {c: DEGREE - _CROSSINGS.get(c, 0) for c in cells}
+    return kept_edges(sorted(cells), dists, room)
 
 
 def grid_entrances(grid, cuts, jobs=1):
@@ -966,8 +1012,8 @@ def grid_entrances(grid, cuts, jobs=1):
     leave, or out of a part the route cannot reach, is of no use to it, so one entrance per such group guarantees a
     route wherever the grid has one. Each contiguous border run keeps an entrance every ENTRANCE_RUN crossings.
     Separate doorways keep separate entrances even when both clusters join them elsewhere. Intra-cluster edges come
-    from Dijkstra under each of WEIGHTS, dropped when a two-hop path is within PRUNE under every weight. An edge
-    carries a cost per weight."""
+    from Dijkstra under each of WEIGHTS, kept as a spanner within PRUNE of every pair's cost (kept_edges). An
+    edge carries a cost per weight."""
     global _HPA
     g = lambda gx, gy: grid[gx * GH + gy]  # noqa: E731
     region = array("i", [-1]) * (GW * GH + len(FLOOR_CELL))
@@ -1085,14 +1131,23 @@ def grid_entrances(grid, cuts, jobs=1):
 
 def grid_hpa(grid, cuts, jobs=1):
     """Build the border entrances, then their weighted paths inside each cluster."""
-    global _HPA
+    global _HPA, _CROSSINGS
     nodes, edges = grid_entrances(grid, cuts, jobs)
     inter = len(edges)
-    _HPA = (grid, cuts, nodes)
-    for found in run_clusters(cluster_edges, sorted(nodes), jobs):
+    crossings = defaultdict(int)
+    for a, _ in edges:
+        crossings[a] += 1
+    _HPA, _CROSSINGS = (grid, cuts, nodes), dict(crossings)
+    worst = 1.0
+    for found, capped in run_clusters(cluster_edges, sorted(nodes), jobs):
         edges.update(found)
-    _HPA = None
-    print(f"grid HPA: nodes {sum(map(len, nodes.values()))}, edges {len(edges)} (inter {inter})", flush=True)
+        worst = max(worst, capped)
+    _HPA = _CROSSINGS = None
+    print(
+        f"grid HPA: nodes {sum(map(len, nodes.values()))}, edges {len(edges)} (inter {inter}), "
+        f"worst pair at an entrance's edge limit {worst:.3f}",
+        flush=True,
+    )
     return nodes, edges
 
 

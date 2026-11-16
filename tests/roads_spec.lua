@@ -119,7 +119,9 @@ local explicit, explicitCost = Path.FindSync(0, from, to, false, profile("defaul
 assert(explicitCost == roadCost, "50% preserves the default road cost")
 -- The drawn line now obeys the same road preference as the walk it draws (#891), so its points may differ from the
 -- pre-#891 default while its road share may not fall below the walked route's.
-assert(share(explicit) >= roadShare, "the default walk's drawn line keeps its road share")
+-- The two can be one line cut at different vertices, whose samples then add up in a different order: the shares
+-- agree to the last bits of a float, not bit for bit.
+assert(share(explicit) >= roadShare - 1e-9, "the default walk's drawn line keeps its road share")
 local shortest, shortestCost = Path.FindSync(0, from, to, false, profile("zero", true, 1))
 assert(shortestCost == plainCost and #shortest == #plain, "0% removes all road preference")
 for i, point in ipairs(plain) do
@@ -142,5 +144,5 @@ end
 -- Return to the default after changing it: neither the path nor endpoint cache may retain the stronger cost.
 local restored, restoredCost = Path.FindSync(0, from, to, false, profile("default", true, 1.5))
 assert(restoredCost == roadCost, "restoring 50% restores the cached default cost")
-assert(share(restored) >= roadShare, "restoring 50% keeps the drawn line on the road")
+assert(share(restored) >= roadShare - 1e-9, "restoring 50% keeps the drawn line on the road")
 print("road detour: default geometry, zero, stronger preference and both batch directions ok")

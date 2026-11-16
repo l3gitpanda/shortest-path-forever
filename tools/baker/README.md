@@ -108,7 +108,11 @@ change requires a terrain bake, rather than a graph refresh.
 
 ## Walking maps
 
-The Python generator builds HPA* graphs and 8-yard grids from Detour polygons. It keeps overlapping walkable
+The Python generator builds HPA* graphs and 8-yard grids from Detour polygons. Inside a cluster the graph keeps a
+spanner of its entrances (`kept_edges`): pairs are taken shortest first and an edge is dropped only while the
+edges already kept walk its pair within 2%, so no walk through a cluster is more than 2% longer in the graph than
+on the grid. An entrance keeps at most the 63 edges its record counts; past that it reaches the rest through its
+nearest, and the bake fails if that leaves a pair more than a tenth long. It keeps overlapping walkable
 floors, drops underwater floors, and stores directed costs for ordinary swimming and walking on water.
 Ground a player cannot reach is removed over the supplied crop or map: every disconnected component that holds
 none of the map's fixed places with a height (flight masters, docks and lift ends, portal ends and teleport landings,
