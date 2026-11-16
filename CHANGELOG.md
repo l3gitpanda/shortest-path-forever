@@ -12,6 +12,10 @@ optional `### For addon authors` subsection after a version's player bullets.
 
 ## [Unreleased]
 
+- **A walk through Stormwind starts on the street you are on.** The streets stand over open ground that the walking map also holds, and with no height for you the walk started from whichever was shorter: from the Canals to the harbor, 607 yd from under the city and through its wall. Where service and quest NPCs stand near one of the floors at your spot, that floor is now the one you are on, unless a range check or the floor you walked in on says otherwise. Ironforge, with the mountain over it, and Orgrimmar gain the same. From each city's flight master to sixty places, 47 walks in Stormwind and 39 in Ironforge started on the wrong floor; none do now.
+
+- **The walk up from Stormwind's harbor takes the ramp.** The walking map had the top of the ramp downhill only, so a journey from the dock went under the city: 1,278 yd to the Canals where the ramp is 796. The maps are rebuilt with the step in both directions.
+
 - **Walks through a city take the way the walking map has.** The map's doorways were joined by links that could each stand in for the next, so a walk could be planned round a second doorway and back: Stormwind's gryphon master reached the Park in 961 yd where the streets allow 756. Every pair of doorways in a map tile is now linked within 2% of the walk between them, on all three maps.
 
 - **A destination the walking map has no floor for is walked to on its own level.** The Undercity's Royal Quarter is not on the walking map; a journey to Lady Sylvanas went out through the sewers to the lake above her and drew a straight line down. It now ends in the Royal Quarter's corridor, the stretch past the map is drawn faint, and the tracker says how far is not on the walking map.
