@@ -587,3 +587,17 @@ L["What the direction arrow shows under it: the distance in the selected arrow m
 	"Что показано под стрелкой: расстояние в выбранном режиме, оставшееся время путешествия или оба значения." -- mt
 
 L["Transmogrifier"] = "Трансмогрификатор" -- mt
+L["/path nav - draw the walking map around you on the world map"] =
+	"/path nav - рисует карту пешеходных путей вокруг вас на карте мира" -- mt
+L["The last %d yd are not on the walking map"] =
+	"Последние %d м не отмечены на карте путей" -- mt
+L["The last %d yd, %d yd down, are not on the walking map"] =
+	"Последние %d м, на %d м ниже, не отмечены на карте путей" -- mt
+L["The last %d yd, %d yd up, are not on the walking map"] =
+	"Последние %d м, на %d м выше, не отмечены на карте путей" -- mt
+L["There is no walking map here."] = "Здесь нет карты пешеходных путей." -- mt
+L["Walking map overlay off."] = "Слой карты путей выключен." -- mt
+L["Walking map overlay on: open the world map to see the steps a walk can take around you."] =
+	"Слой карты путей включён: откройте карту мира, чтобы увидеть шаги, которые путь может сделать вокруг вас." -- mt
+L["Green is ground, blue water, orange one way only, purple the links between doorways."] =
+	"Зелёный — земля, синий — вода, оранжевый — только в одну сторону, фиолетовый — связи между проходами." -- mt

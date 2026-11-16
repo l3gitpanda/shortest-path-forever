@@ -426,9 +426,15 @@ ShortestPathForeverPathData = nil
 ---@field friendly boolean? the spell targets an ally or any unit
 ---@field hostile boolean? the spell targets an enemy or any unit
 
+-- A walk's last segment when its goal stands on a floor the walking map does not hold (PathGrid.lua's snap): from
+-- the mapped ground the walk reaches to the goal itself.
+---@class SPFUnmappedTail
+---@field yards number -- the segment's length on the map
+---@field rise number -- the goal's height above the ground the walk reaches, negative below it
 ---@class SPFWalkPoints
 ---@field [integer] SPFPoint
 ---@field wet? number
+---@field unmapped? SPFUnmappedTail
 ---@class SPFDrawPath
 ---@field mode SPFMode
 ---@field points SPFWalkPoints
@@ -463,7 +469,7 @@ ShortestPathForeverPathData = nil
 ---@field walkDrawn? boolean -- walkPoints came from a search, not a straight placeholder
 ---@field walkPlaceholder? boolean -- walkPoints is still a straight stand-in, not a measured walk
 ---@field color? ColorMixin -- drawn in this colour rather than its mode's
----@field hazardNotes? string[] -- the hostile towns and high zones a measured walk meets or goes round (Hazards.lua)
+---@field hazardNotes? string[] -- what a measured walk meets: an unmapped last stretch, hostile towns, high zones
 ---@field reachedAt? number -- when you reached a lift's shaft, whose landings share a spot (JourneySteps.lua)
 ---@class SPFPlan
 ---@field provisional? boolean

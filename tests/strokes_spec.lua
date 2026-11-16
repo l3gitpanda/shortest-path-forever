@@ -146,6 +146,21 @@ for i = 1, strokes.n do
 	check(close(math.sqrt(strokes.ux[i] ^ 2 + strokes.uy[i] ^ 2), RIM), "the rim reaches past each end too")
 	check(strokes.alpha[i] == 1 and strokes.color[i] == "walk" and strokes.route[i] == nil)
 end
+-- A walk to a floor the walking map does not hold ends in a stretch no search measured (Path.lua's unmapped): it is
+-- drawn as faintly as a straight placeholder, and the walk up to it at full strength.
+local reached = { mode = "walk", points = { point(0.1, 0.5), point(0.3, 0.5), point(0.3, 0.8) } }
+reached.points.unmapped = { yards = 300, rise = 0 }
+Strokes.Map(strokes, { reached }, mapView())
+local mapped, hinted = 0, 0
+for i, centre in ipairs(dots(strokes)) do
+	local tail = centre[2] < -500 - 1e-6
+	check(strokes.alpha[i] == (tail and 0.45 or 1), "dot " .. i .. " is as strong as its stretch was measured")
+	mapped, hinted = mapped + (tail and 0 or 1), hinted + (tail and 1 or 0)
+end
+check(mapped > 0 and hinted > 0, "both stretches are drawn")
+-- The next path starts at full strength again.
+Strokes.Map(strokes, { reached, bend }, mapView())
+check(strokes.alpha[strokes.n] == 1, "the stretch's faintness ends with its walk")
 -- Sizes are screen pixels: twice the scale halves them in the view's units.
 Strokes.Map(strokes, { bend }, mapView({ scale = 2 }))
 check(strokes.n == 112 and strokes.width[1] == DOT / 2 and close(length(strokes, 1), DOT / 2), "pixels, not units")

@@ -94,3 +94,38 @@ do
 	assert(not leg.measured and leg.walkPlaceholder, "the cached failure stays unmeasured")
 	assert(#leg.walkPoints == 0, "the cache does not resurrect the straight line")
 end
+
+-- A walk to a floor the walking map does not hold says so under its step, first of its notes, and the note comes
+-- back with the cached walk.
+do
+	ns.L = setmetatable({}, {
+		__index = function(_, phrase)
+			return phrase
+		end,
+	})
+	-- JourneyWalks reads L when it loads.
+	assert(loadfile("Journey/JourneyWalks.lua"))("ShortestPathForever", ns)
+	Walks = ns.JourneySearch.Walks
+	Walks.Clear()
+	Walks.Cancel()
+	map = 0
+	local level = { yards = 94.4, rise = 9 }
+	local below = { yards = 4, rise = -27 }
+	local above = { yards = 20.6, rise = 31 }
+	assert(Walks.Notes({}, {}) == nil, "a walk on the map has nothing to say")
+	assert(Walks.Notes({}, { unmapped = level })[1] == "The last 94 yd are not on the walking map")
+	assert(Walks.Notes({}, { unmapped = below })[1] == "The last 4 yd, 27 yd down, are not on the walking map")
+	assert(Walks.Notes({}, { unmapped = above })[1] == "The last 21 yd, 31 yd up, are not on the walking map")
+	local planned = plan()
+	local before = #jobs
+	Walks.Prepare(planned, nil, false, function() end)
+	assert(#jobs == before + 1, "the walk is searched")
+	local leg = planned.legs[1]
+	local walked = { leg.from, { map = 0, x = 1, y = 1 }, leg.to, wet = 0, unmapped = level }
+	jobs[#jobs].callback(walked, 100, jobs[#jobs])
+	assert(leg.measured and leg.walkPoints.unmapped == level, "the measured walk keeps its unmapped stretch")
+	assert(leg.hazardNotes[1] == "The last 94 yd are not on the walking map", "said under the step")
+	local again = plan()
+	Walks.Prepare(again, nil, false, function() end)
+	assert(again.legs[1].hazardNotes[1] == leg.hazardNotes[1], "and again from the cache")
+end

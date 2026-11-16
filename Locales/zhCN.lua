@@ -543,3 +543,14 @@ L["What the direction arrow shows under it: the distance in the selected arrow m
 	"方向箭头下方显示的内容：所选箭头模式的距离、行程剩余时间或两者。" -- mt
 
 L["Transmogrifier"] = "幻化师" -- mt
+L["/path nav - draw the walking map around you on the world map"] =
+	"/path nav - 在世界地图上绘制你周围的步行地图" -- mt
+L["The last %d yd are not on the walking map"] = "最后 %d 码不在步行地图上" -- mt
+L["The last %d yd, %d yd down, are not on the walking map"] = "最后 %d 码（向下 %d 码）不在步行地图上" -- mt
+L["The last %d yd, %d yd up, are not on the walking map"] = "最后 %d 码（向上 %d 码）不在步行地图上" -- mt
+L["There is no walking map here."] = "这里没有步行地图。" -- mt
+L["Walking map overlay off."] = "步行地图图层已关闭。" -- mt
+L["Walking map overlay on: open the world map to see the steps a walk can take around you."] =
+	"步行地图图层已开启：打开世界地图即可看到你周围步行可以走的每一步。" -- mt
+L["Green is ground, blue water, orange one way only, purple the links between doorways."] =
+	"绿色为地面，蓝色为水面，橙色为单向，紫色为通道之间的连接。" -- mt

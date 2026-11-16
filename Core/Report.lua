@@ -58,6 +58,16 @@ local function Steps(lines, legs, index)
 			leg.wait and leg.wait > 0 and (", waits %ds"):format(Seconds(leg.wait)) or "",
 			leg.walkError and (", walk failed: %s"):format(leg.walkError) or ""
 		)
+		-- Where the walking map has the two ends of the walk under way, and of any walk that failed: a wrong floor
+		-- or a floor the map lacks is the usual reason a walk goes wrong, and neither shows in the steps.
+		if leg.mode == "walk" and (position == index or leg.walkError) and ns.Path.HasData(leg.from.map) then
+			lines[#lines + 1] = "     from: " .. ns.Path.StandingText(ns.Path.Standing(leg.from.map, leg.from))
+			lines[#lines + 1] = "     to: " .. ns.Path.StandingText(ns.Path.Standing(leg.to.map, leg.to))
+			local tail = leg.walkPoints and leg.walkPoints.unmapped
+			if tail then
+				lines[#lines + 1] = ("     last %.0f yd off the walking map, rise %.0f"):format(tail.yards, tail.rise)
+			end
+		end
 	end
 end
 

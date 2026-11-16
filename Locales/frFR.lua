@@ -559,3 +559,16 @@ L["What the direction arrow shows under it: the distance in the selected arrow m
 	"L'affichage sous la flèche : la distance selon le mode choisi, le temps de voyage restant ou les deux." -- mt
 
 L["Transmogrifier"] = "Transmogrifieur" -- mt
+L["/path nav - draw the walking map around you on the world map"] =
+	"/path nav - dessine la carte des chemins autour de vous sur la carte du monde" -- mt
+L["The last %d yd are not on the walking map"] = "Les %d derniers m ne sont pas sur la carte des chemins" -- mt
+L["The last %d yd, %d yd down, are not on the walking map"] =
+	"Les %d derniers m, %d m plus bas, ne sont pas sur la carte des chemins" -- mt
+L["The last %d yd, %d yd up, are not on the walking map"] =
+	"Les %d derniers m, %d m plus haut, ne sont pas sur la carte des chemins" -- mt
+L["There is no walking map here."] = "Il n'y a pas de carte des chemins ici." -- mt
+L["Walking map overlay off."] = "Calque de la carte des chemins désactivé." -- mt
+L["Walking map overlay on: open the world map to see the steps a walk can take around you."] =
+	"Calque de la carte des chemins activé : ouvrez la carte du monde pour voir les pas qu'un chemin peut faire autour de vous." -- mt
+L["Green is ground, blue water, orange one way only, purple the links between doorways."] =
+	"Vert pour le sol, bleu pour l'eau, orange à sens unique, violet pour les liens entre les passages." -- mt

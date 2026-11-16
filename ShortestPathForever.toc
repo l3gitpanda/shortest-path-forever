@@ -86,6 +86,7 @@ Nav\Nav.xml
 Routing\PathGrid.lua
 Routing\Path.lua
 Routing\PathJobs.lua
+Routing\PathProbe.lua
 Routing\Floor.lua
 Routing\Band.lua
 Journey\JourneySteps.lua
@@ -104,6 +105,7 @@ UI\Strokes.lua
 UI\QuestPins.lua
 UI\Route.lua
 UI\RouteTransports.lua
+UI\NavDebug.lua
 UI\Alert.lua
 UI\Settings.lua
 UI\WhatsNew.lua

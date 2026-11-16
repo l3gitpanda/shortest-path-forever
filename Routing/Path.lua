@@ -687,7 +687,11 @@ local function run(map, from, to, waterWalking, costOnly, hz)
 	if not sk or not gk then
 		return nil, "outside"
 	end
-	sc, gc = snap(st, sk, sc, from.x, from.y, from.z), snap(st, gk, gc, to.x, to.y, to.z)
+	sc = snap(st, sk, sc, from.x, from.y, from.z)
+	-- A goal whose floor the map does not hold is walked to the mapped ground nearest it (PathGrid's snap): the
+	-- walk is real as far as that ground, and the stretch beyond it is told apart rather than drawn as a walk.
+	local goalOff
+	gc, goalOff = snap(st, gk, gc, to.x, to.y, to.z)
 	if not sc or not gc then
 		return nil, "offmesh"
 	end
@@ -985,6 +989,8 @@ local function run(map, from, to, waterWalking, costOnly, hz)
 				P.t[n] - P.t[goalVia] + goalTime
 			)
 	end
+	-- The mapped walk ends on the node it was searched to, so the stretch past it is one segment of its own.
+	goalDetour = goalDetour or goalOff == true
 	local drawn = { 1 }
 	if startDetour then
 		drawn[#drawn + 1] = 1
@@ -1018,6 +1024,16 @@ local function run(map, from, to, waterWalking, costOnly, hz)
 		wetYards = wetYards + length * wet
 	end
 	points.wet = wetYards
+	if goalOff then
+		-- The last point is the goal itself and the one before it the mapped ground the walk reaches: what lies
+		-- between them is not on the map, so it is a bearing and a distance, never a measured walk. The stretch is
+		-- always the walk's last segment, so nothing indexes into a list that is redrawn from where the player is.
+		local last, goal = points[#points - 1], points[#points]
+		points.unmapped = {
+			yards = sqrt((goal.x - last.x) ^ 2 + (goal.y - last.y) ^ 2),
+			rise = to.z - last.z,
+		}
+	end
 	-- Smoothing only changes drawing: planning and FindMany use the same hazard-selected graph route and real cost.
 	return points, cost
 end

@@ -564,3 +564,16 @@ L["What the direction arrow shows under it: the distance in the selected arrow m
 	"방향 화살표 아래에 표시할 정보: 선택한 화살표 모드의 거리, 남은 여정 시간 또는 둘 다." -- mt
 
 L["Transmogrifier"] = "형상변환사" -- mt
+L["/path nav - draw the walking map around you on the world map"] =
+	"/path nav - 세계 지도에 내 주변의 도보 지도를 그립니다" -- mt
+L["The last %d yd are not on the walking map"] = "마지막 %d미터는 도보 지도에 없습니다" -- mt
+L["The last %d yd, %d yd down, are not on the walking map"] =
+	"마지막 %d미터(%d미터 아래)는 도보 지도에 없습니다" -- mt
+L["The last %d yd, %d yd up, are not on the walking map"] =
+	"마지막 %d미터(%d미터 위)는 도보 지도에 없습니다" -- mt
+L["There is no walking map here."] = "여기에는 도보 지도가 없습니다." -- mt
+L["Walking map overlay off."] = "도보 지도 표시 끔." -- mt
+L["Walking map overlay on: open the world map to see the steps a walk can take around you."] =
+	"도보 지도 표시 켬: 세계 지도를 열면 주변에서 걸어갈 수 있는 걸음이 보입니다." -- mt
+L["Green is ground, blue water, orange one way only, purple the links between doorways."] =
+	"초록은 땅, 파랑은 물, 주황은 한쪽 방향만, 보라는 통로 사이의 연결입니다." -- mt

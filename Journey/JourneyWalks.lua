@@ -8,11 +8,14 @@ end
 -- The walks a journey's search has measured, kept behind JourneySearch.lua: the drawn path of each walking leg,
 -- searched once and shared by every plan that walks it, and the walks on from a bind point.
 local WALK_CACHE_LIMIT = 64
+-- A goal this near the height of the ground its walk reaches is on that ground's level (PathGrid.lua's ZTOL).
+local LEVEL = 10
 
 ---@class SPFJourneyWalks
 local Walks = ns.JourneySearch.Walks
 local SamePlace = ns.JourneySearch.SamePlace
 local Context = ns.PlanContext
+local L = ns.L
 
 -- A finished leg search: the path it found (or the one it failed to replace), why it failed, its running yards.
 ---@class SPFMeasuredWalk
@@ -69,6 +72,33 @@ local function CacheWalk(key, entry)
 	walkCache[key] = entry
 end
 
+-- What the tracker says under a walk's step: the hostile towns and high zones it meets (Hazards.lua), and first of
+-- all that its last stretch is off the walking map, when the goal stands on a floor the map does not hold. The
+-- arrow still points at the goal over that stretch; the note says the line there was never measured.
+---@param leg SPFLeg
+---@param points SPFWalkPoints
+---@return string[]?
+local function WalkNotes(leg, points)
+	local notes = hazards and ns.Hazards.Notes(hazards, leg, points) or nil
+	local tail = points.unmapped
+	if tail then
+		notes = notes or {}
+		local yards = math.floor(tail.yards + 0.5)
+		local rise = math.floor(math.abs(tail.rise) + 0.5)
+		local line
+		if rise <= LEVEL then
+			line = string.format(L["The last %d yd are not on the walking map"], yards)
+		elseif tail.rise > 0 then
+			line = string.format(L["The last %d yd, %d yd up, are not on the walking map"], yards, rise)
+		else
+			line = string.format(L["The last %d yd, %d yd down, are not on the walking map"], yards, rise)
+		end
+		table.insert(notes, 1, line)
+	end
+	return notes
+end
+Walks.Notes = WalkNotes
+
 local function FindWalk(planned, leg, key, water, done)
 	local version, previous = pathVersion, leg.walkPoints
 	-- A straight placeholder is not a drawn walk: only points an earlier search measured are kept through this one.
@@ -83,7 +113,7 @@ local function FindWalk(planned, leg, key, water, done)
 		if points then
 			leg.walkPoints, leg.walkPlaceholder = points, nil
 			leg.measured, leg.walkDrawn, leg.wet, leg.walkCost = true, true, points.wet, cost
-			leg.hazardNotes = hazards and ns.Hazards.Notes(hazards, leg, points) or nil
+			leg.hazardNotes = WalkNotes(leg, points)
 			if planned.preview then
 				leg.yards = cost
 			end

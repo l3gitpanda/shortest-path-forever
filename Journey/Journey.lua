@@ -269,7 +269,9 @@ local function Near(node, reach)
 	-- never arrives there. Where the floor is unknown, the spot alone decides, as before. Only the goal: a dock's or
 	-- a landing's height is the transport's, and boarding and landing have their own tests.
 	local atGoal = goal and node.z and node.map == goal.map and node.x == goal.x and node.y == goal.y
-	local height = atGoal and map and ns.Floor and ns.Floor.Height(map, x, y)
+	local last = result and result.legs[#result.legs]
+	local mapped = not (last and last.walkPoints and last.walkPoints.unmapped) -- past the map no floor is followed
+	local height = atGoal and mapped and map and ns.Floor and ns.Floor.Height(map, x, y)
 	return not (height and math.abs(height - node.z) > OTHER_FLOOR)
 end
 
@@ -576,10 +578,12 @@ local function OnWalk(points, here, reach)
 		local dx, dy, length = b.x - a.x, b.y - a.y, lengths[index]
 		local t = length > 0 and math.max(0, math.min(1, ((here.x - a.x) * dx + (here.y - a.y) * dy) / length ^ 2)) or 0
 		local off = math.sqrt((a.x + t * dx - here.x) ^ 2 + (a.y + t * dy - here.y) ^ 2)
-		local height = here.z and SegmentHeight(a, b, t)
+		-- The stretch past the map (points.unmapped) is on no floor Floor.lua follows, and as wide as it is long.
+		local tail = index == #points and points.unmapped
+		local height = here.z and not tail and SegmentHeight(a, b, t)
 		if
 			here.map == a.map
-			and off <= (reach or ON_PATH)
+			and off <= math.max(reach or ON_PATH, tail and tail.yards or 0)
 			and (not best or off < best)
 			and not (height and math.abs(height - here.z) > OTHER_FLOOR)
 		then
@@ -615,6 +619,7 @@ local function Refresh()
 				for index = found, #points do
 					ahead[#ahead + 1] = points[index]
 				end
+				ahead.unmapped = points.unmapped -- the last segment stays the one no search measured
 				remaining.legs[1] = setmetatable({ walkPoints = ahead }, { __index = leg })
 			end
 		end

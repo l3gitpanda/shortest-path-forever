@@ -78,6 +78,7 @@ Right-click a flight master icon to mark its flight path as known if a flight ma
 | `/path issue` | Show a filled-in GitHub issue link, selected for copying, to report a bug or request a feature |
 | `/path perf` | Print this addon's CPU and memory use |
 | `/path debug` | Keep a trace of your ride matching, for a ride that was not recorded |
+| `/path nav` | Draw the walking map around you on the world map, to check it where a walk goes wrong |
 | `/spfnear` | Open the Nearby services tab; add a service such as `repair`, `trainer` or `flight` to route to the nearest one |
 
 The world map's filter menu and the minimap's tracking menu hide each kind of mark. Searches and tracker updates wait until combat ends.

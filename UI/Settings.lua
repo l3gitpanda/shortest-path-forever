@@ -972,6 +972,10 @@ ns.Init(function()
 			ns.Print(L["/path farm - choose recorded gathering locations"])
 			ns.Print(L["/path report - show a report to copy into a bug report"])
 			ns.Print(L["/path issue - report a bug or request a feature with a ready-made GitHub issue link"])
+			ns.Print(L["/path nav - draw the walking map around you on the world map"])
+			return
+		elseif message == "nav" then
+			ns.NavDebug.Toggle()
 			return
 		elseif message == "debug" then
 			ns.db.debug = not ns.db.debug

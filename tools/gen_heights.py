@@ -37,10 +37,18 @@ TUPLES = re.compile(r"\(((?:'(?:\\.|[^'\\])*'|[^()'])*)\)")
 TILE = 1600 / 3
 
 
+# creature_template columns: Entry, InhabitType and NpcFlags. InhabitType 4 flies, and a flyer's spawn height is the
+# air it hangs in, never a floor.
+ENTRY, INHABIT, NPC_FLAGS = 0, 13, 16
+FLIES = 4
+
+
 def spawns(refresh=False, offline=False):
     """Creature spawns and the quest kinds of gameobject spawns on the walking maps, as
-    (map, creature ID, x, y, z, idle) strings. MovementType 0 stands still at its spawn; every other creature wanders
-    or patrols off it, and no quest object moves."""
+    (map, creature ID, x, y, z, idle, served) strings. MovementType 0 stands still at its spawn; every other creature
+    wanders or patrols off it, and no quest object moves. A served spawn is one a journey is planned to and whose
+    height is a floor's: it stands still, has an NPC flag (gossip, quests, a vendor, a trainer, ...) and does not
+    fly."""
     path = CACHE / f"classicdb-{DB_REV[:8]}.sql.gz"
     fetch(
         DB_URL,
@@ -51,7 +59,7 @@ def spawns(refresh=False, offline=False):
         timeout=60,
         validate=gzip.decompress,
     )
-    creatures, objects, types = [], [], {}
+    creatures, objects, types, served = [], [], {}, set()
     # creature and gameobject rows hold numbers only; gameobject_template's names are quoted.
     with gzip.open(path, "rt", encoding="utf-8") as stream:
         for line in stream:
@@ -60,6 +68,11 @@ def spawns(refresh=False, offline=False):
                     row = match[1].split(",")
                     if row[2] in MAPS:
                         creatures.append((row[2], row[1], row[4], row[5], row[6], "1" if row[11] == "0" else "0"))
+            elif line.startswith("INSERT INTO `creature_template` VALUES "):
+                for match in TUPLES.finditer(line):
+                    row = next(csv.reader([match[1]], quotechar="'", escapechar="\\"))
+                    if int(row[NPC_FLAGS]) and not int(row[INHABIT]) & FLIES:
+                        served.add(row[ENTRY])
             elif line.startswith("INSERT INTO `gameobject` VALUES "):
                 for match in TUPLES.finditer(line):
                     row = match[1].split(",")
@@ -72,7 +85,8 @@ def spawns(refresh=False, offline=False):
     if not creatures or not objects or not types:
         raise ValueError("classic-db: missing creature, gameobject or gameobject_template rows")
     still = [spawn for entry, spawn in objects if types.get(entry) in OBJECT_TYPES]
-    return creatures + [(map_id, "0", x, y, z, "0") for map_id, x, y, z in still]
+    rows = [(*spawn, "1" if spawn[5] == "1" and spawn[1] in served else "0") for spawn in creatures]
+    return rows + [(map_id, "0", x, y, z, "0", "0") for map_id, x, y, z in still]
 
 
 def bake(rows):
@@ -137,6 +151,9 @@ def render(kept):
         f"-- DB: https://github.com/cmangos/classic-db/tree/{DB_REV}",
         "-- SpawnHeights[map][k + 1]: the spawns in Nav cluster k standing within a cell of another surface more",
         "-- than ZTOL away, as space-separated world x, y and the height of the surface they stand on, in whole yards.",
+        "-- An NPC with a service or a quest that stands still on a floor the walking map does not hold (no surface",
+        "-- within ZTOL of it in the cells around it) is listed with its own height, so a journey to it is walked to",
+        "-- the mapped ground on its level and the rest is told apart (Routing/PathGrid.lua's snap).",
         "local ns = select(2, ...)",
         "",
         "-- stylua: ignore",

@@ -974,6 +974,15 @@ function Search.Replan(riding, flying, changedRide, changedSpeed)
 		local here = Here()
 		local leg = followed and followed.legs[progress.index]
 		local off = here and leg and leg.mode == "walk" and leg.measured and not ns.OnWalk(leg.walkPoints, here)
+		-- On the stretch past the walking map (points.unmapped) there is nothing to search from: the map has no
+		-- floor under you there, and a walk searched from the nearest one it does have (a lake over the Undercity's
+		-- Royal Quarter) leads back out. The walk you are on holds until you arrive or come back onto the map.
+		local past = here
+			and leg
+			and leg.mode == "walk"
+			and leg.measured
+			and leg.walkPoints.unmapped
+			and ns.OnWalk(leg.walkPoints, here) == #leg.walkPoints
 		local moved = here and startAt and not SamePlace(startAt, here)
 		local retry = here
 			and startAt
@@ -983,7 +992,8 @@ function Search.Replan(riding, flying, changedRide, changedSpeed)
 		-- you stood stop describing here: walked on before casting, they are searched again. An unboarded boat
 		-- likewise needs the approach searched from here when the player leaves its dock.
 		local walkedOn = moved and leg and (leg.mode == "teleport" or leg.mode == "boat" and not progress.departed)
-		if not flying and not riding and (off or retry or walkedOn or GetTime() - refreshedAt >= REFRESH_EVERY) then
+		local due = off or retry or walkedOn or GetTime() - refreshedAt >= REFRESH_EVERY
+		if not past and not flying and not riding and due then
 			RefreshCosts(false, off or retry)
 		elseif changedRide or changedSpeed or not RetimeKept() then
 			local planned = Plan()

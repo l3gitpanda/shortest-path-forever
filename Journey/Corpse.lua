@@ -116,6 +116,7 @@ function Corpse.Steer()
 			for index = found, #leg.walkPoints do
 				ahead[#ahead + 1] = leg.walkPoints[index]
 			end
+			ahead.unmapped = leg.walkPoints.unmapped
 			yards = after
 		elseif GetTime() - run.searchedAt >= SEARCH_EVERY then
 			-- Strayed off it: search again from here.

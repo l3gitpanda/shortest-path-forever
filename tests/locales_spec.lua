@@ -29,7 +29,8 @@ local SINKS = {
 	'AddFilter%(%s*"[%w_]+",%s*"([^"]*)"',
 }
 
--- Shown as they are on purpose: the addon's name, and `/path perf` and `/path debug` output.
+-- Shown as they are on purpose: the addon's name, and `/path perf`, `/path debug` and `/path nav` output (the last
+-- is the line of /path report that says where the walking map has you, in the report's own English).
 local ALLOWED = {
 	["Shortest Path Forever"] = true,
 	["CPU profiling is unavailable on this client."] = true,
@@ -38,6 +39,7 @@ local ALLOWED = {
 	["CPU %s: %.3f ms"] = true,
 	["Memory (collected): %.1f KB"] = true,
 	["debug "] = true,
+	["You: "] = true,
 	["walking cost mismatch: planned %.1f, found %s"] = true,
 	["map %s at %s, %s; ride: %s"] = true,
 }

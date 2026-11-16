@@ -57,6 +57,18 @@ local function Match(heights, h)
 	return best
 end
 
+-- No surface around a spawn stands within APART of its height: its floor is not on the map at all. MATCH would be
+-- too strict a test, since one server height in ten sits more than MATCH from the client's surface on ground that is
+-- on the map.
+local function OffMap(heights, h)
+	for _, s in ipairs(heights) do
+		if abs(s - h) <= APART then
+			return false
+		end
+	end
+	return true
+end
+
 -- [map x y] = the height kept there, or false when spawns on different floors round to the same spot (the ruins over
 -- the Undercity): there a height would guess, so the spot keeps the cheapest surface. The idle spawns are keyed by
 -- creature ID too, so two creatures at one spot keep their own heights and one creature's two floors cancel.
@@ -72,7 +84,7 @@ end
 local kept, order = {}, {}
 local idle, idleOrder = {}, {}
 for line in io.lines() do
-	local map, npc, x, y, h, stands = line:match("^(%d+)\t(%d+)\t(%S+)\t(%S+)\t(%S+)\t(%d+)$")
+	local map, npc, x, y, h, stands, served = line:match("^(%d+)\t(%d+)\t(%S+)\t(%S+)\t(%S+)\t(%d+)\t(%d+)$")
 	map, npc, x, y, h, stands = tonumber(map), tonumber(npc), tonumber(x), tonumber(y), tonumber(h), tonumber(stands)
 	local st = map and Path.HasData(map) and Grid.State(map)
 	if st then
@@ -102,6 +114,11 @@ for line in io.lines() do
 				local where = string.format("%d\t%d\t%d\t%d", map, npc, floor(x + 0.5), floor(y + 0.5))
 				Remember(idle, idleOrder, where, floor(z + 0.5))
 			end
+		elseif served == "1" and OffMap(near, h) then
+			-- The floor this NPC stands on is not on the map: with no height its journey would end on whatever
+			-- surface is there, a lake over the Undercity's Royal Quarter. Its own height lets the walk end on the
+			-- mapped ground of its level and say the rest is not mapped (PathGrid.lua's snap).
+			Remember(kept, order, string.format("%d\t%d\t%d", map, floor(x + 0.5), floor(y + 0.5)), floor(h + 0.5))
 		end
 	end
 end

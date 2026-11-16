@@ -391,9 +391,15 @@ function Strokes.Map(buffer, paths, view)
 		local previous, px, py
 		local points = ns.FlightLinePoints(path)
 		local crossing = OverviewCrossing(view, path, color)
+		-- A walk to a floor the walking map does not hold ends in a stretch no search measured: it is drawn as the
+		-- hint a placeholder is, so the line through whatever stands there is not read as the way.
+		local tail = path.points.unmapped and #points
 		for index = 1, crossing and 0 or #points do
 			local point = points[index]
 			local x, y = position(point, mapID)
+			if index == tail then
+				fade = 0.45
+			end
 			local after = points[index + 1]
 			-- Smoothed flight points can be less than a pixel apart when the map is zoomed out.
 			-- Keep longer connected strokes, retaining endpoints and loading boundaries.
@@ -512,8 +518,12 @@ function Strokes.Minimap(buffer, paths, view)
 			local points = ns.FlightLinePoints(path)
 			local color = path.color or view.colors[path.mode]
 			local walk = path.mode == "walk"
+			local tail = path.points.unmapped and #points
 			for index = 2, #points do
 				local a, b = points[index - 1], points[index]
+				if index == tail then
+					fade = 0.45 -- the stretch past the mapped ground, as on the world map
+				end
 				if a.map == map and b.map == map and not a.jump then
 					local ax, ay = Project(a, x, y, radius, cosine, sine)
 					local bx, by = Project(b, x, y, radius, cosine, sine)

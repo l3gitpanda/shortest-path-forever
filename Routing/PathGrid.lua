@@ -40,6 +40,7 @@ local OFFROAD = 1.5
 
 local TILE = 1600 / 3
 local SNAP = 6 -- cells searched around an off-grid endpoint
+local REACH = 30 -- cells searched for ground at an endpoint's own height when the map has none within SNAP
 local ZTOL = 10 -- an endpoint stands on a surface within this height (yd)
 local CHECK = 64 -- expansions between clock reads
 
@@ -1206,14 +1207,24 @@ end
 -- The node an endpoint stands on: within SNAP cells, the surface with the least distance plus twice the height gap,
 -- preferring those within ZTOL of its height; a point off every surface (in a lift shaft, mid-jump, deep under water)
 -- takes the least of the same cost among all surfaces.
+-- A point with a height whose floor the map does not hold (the Undercity's Royal Quarter, a room behind a portal)
+-- is off the map: taking the nearest surface of any height sent its walk to the lake ninety yards above it and drew
+-- a straight line down through the rock. The rings go on out to REACH for ground at the point's own height, so the
+-- walk ends on the mapped ground nearest it on its own level; with none there either, the nearest surface of any
+-- height stands in as before. Both answer `off`, so the caller can say the last stretch is not on the map. The
+-- search stays inside the point's own cluster, as the first SNAP rings always have.
+---@return number? node, boolean? off
 local function snap(st, k, lc, x, y, h)
 	local C, cs = st.C, st.cs
 	local lx, ly = floor(lc / C), lc % C
 	local cx, cy = st.x0 + (floor(k / st.ny) * C + lx + 0.5) * cs, st.y0 + ((k % st.ny) * C + ly + 0.5) * cs
-	local best, bestCost, any, anyCost
-	for r = 0, SNAP do
+	local best, bestCost, bestRing, any, anyCost
+	for r = 0, h and REACH or SNAP do
 		if best and (r - 1) * cs > bestCost then
 			break
+		end
+		if r > SNAP then
+			tick() -- a ring past SNAP is searched only for a point off the map, and may take a frame's worth of cells
 		end
 		for dx = -r, r do
 			for dy = -r, r do
@@ -1224,9 +1235,9 @@ local function snap(st, k, lc, x, y, h)
 						local d = r == 0 and 0 or sqrt((cx + dx * cs - x) ^ 2 + (cy + dy * cs - y) ^ 2)
 						local cost = d + 2 * gap
 						if gap <= ZTOL and (not bestCost or cost < bestCost) then
-							best, bestCost = n, cost
+							best, bestCost, bestRing = n, cost, r
 						end
-						if not anyCost or cost < anyCost then
+						if r <= SNAP and (not anyCost or cost < anyCost) then
 							any, anyCost = n, cost
 						end
 					end
@@ -1234,7 +1245,11 @@ local function snap(st, k, lc, x, y, h)
 			end
 		end
 	end
-	return best or any
+	if best then
+		-- found past the first rings: on the point's level, but not where the point is
+		return best, bestRing > SNAP or nil
+	end
+	return any, any ~= nil and h ~= nil or nil
 end
 
 -- Global grid helpers for smoothing across clusters.
