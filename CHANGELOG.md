@@ -12,6 +12,14 @@ optional `### For addon authors` subsection after a version's player bullets.
 
 ## [Unreleased]
 
+- **Walks through a city take the way the walking map has.** The map's doorways were joined by links that could each stand in for the next, so a walk could be planned round a second doorway and back: Stormwind's gryphon master reached the Park in 961 yd where the streets allow 756. Every pair of doorways in a map tile is now linked within 2% of the walk between them, on all three maps.
+
+- **A destination the walking map has no floor for is walked to on its own level.** The Undercity's Royal Quarter is not on the walking map; a journey to Lady Sylvanas went out through the sewers to the lake above her and drew a straight line down. It now ends in the Royal Quarter's corridor, the stretch past the map is drawn faint, and the tracker says how far is not on the walking map.
+
+- **Journeys to NPCs inside unmapped buildings end at the door.** Ironforge's innkeeper, the barkeep at Bruuk's Corner and Stormwind's mage trainers are among 64 NPCs that stand on floors the walking map lacks. With no height recorded, their journeys ended on whatever was above: for the innkeeper, the mountain over Ironforge. Their heights are recorded now.
+
+- **`/path nav` draws the walking map around you.** On the world map, each line is a step a walk can take: green for ground, blue for water, orange for one way only, purple for the links between a map tile's doorways. `/path report` also says where the map has the two ends of the walk you are on, so a wrong route's report shows a missing wall or floor.
+
 - **Journeys avoid lifts with opposing-faction landing guards.** Horde-guarded approaches are left out of Alliance journeys by default. A lift already being ridden can still reach its next stop. Thanks to a player for the report (#911).
 
 - **Nearby transport pins avoid work between samples.** Minimap boats and portals keep following movement without a callback on every frame. Polling stops while the minimap is hidden or combat is active (#784).
