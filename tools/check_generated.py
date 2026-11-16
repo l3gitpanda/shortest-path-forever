@@ -24,6 +24,7 @@ DATA = (
     "Data/RoadEdges.lua",
     "Data/Heights.lua",
     "Data/IdleSpawns.lua",
+    "Data/People.lua",
     "Data/SpellTargets.lua",
     "Locales/phrases.txt",
 )

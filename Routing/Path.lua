@@ -18,6 +18,7 @@ local cellOf, nodesOf, metadata = Grid.cellOf, Grid.nodesOf, Grid.metadata
 local adjacent, preceding = Grid.adjacent, Grid.preceding
 local entrance, locate, standing, snap, smooth = Grid.entrance, Grid.locate, Grid.standing, Grid.snap, Grid.smooth
 local toward, peak, climbNodes = Grid.toward, Grid.peak, Grid.climbNodes
+local peopled = Grid.peopled
 
 local TILE, SNAP, ZTOL, DX, DY = Grid.TILE, Grid.SNAP, Grid.ZTOL, Grid.DX, Grid.DY
 local OFFROAD = Grid.OFFROAD
@@ -596,6 +597,21 @@ local function connectPoint(st, swim, k, node, point, roadsOn, hz, inbound)
 			end
 			if #inside > 0 then
 				nodes = inside
+			end
+		end
+		-- Where people stand near some of the surfaces left, the point is on one of the surfaces they are nearest
+		-- or one other creatures stand on (PathGrid.lua's peopled): the street, not the open ground under it, however
+		-- much shorter that walk is. A measured band is asked first: it says where the player is, and this only
+		-- where players mostly are.
+		if #nodes > 1 then
+			local kept = peopled(st, #nodes, function(i)
+				return k, nodes[i]
+			end)
+			if kept then
+				for i, index in ipairs(kept) do
+					kept[i] = nodes[index]
+				end
+				nodes = kept
 			end
 		end
 	end

@@ -6,7 +6,9 @@ local ns = {}
 for _, map in ipairs({ 0, 1 }) do
 	assert(loadfile("tools/load_nav.lua"))(map)
 end
-for _, file in ipairs({ "Data/Heights.lua", "Routing/PathGrid.lua", "Routing/Path.lua", "Routing/PathJobs.lua" }) do
+local FILES =
+	{ "Data/Heights.lua", "Data/People.lua", "Routing/PathGrid.lua", "Routing/Path.lua", "Routing/PathJobs.lua" }
+for _, file in ipairs(FILES) do
 	assert(loadfile(file))("ShortestPathForever", ns)
 end
 local Path, Grid = ns.Path, ns.PathGrid
@@ -261,6 +263,68 @@ do
 	local _, cost = walk(0, DUNGAR, PARK)
 	local best = assert(flat(0, DUNGAR, PARK, 400000))
 	assert(cost <= best * 1.05, ("%.0f yd against the grid's %.0f"):format(cost, best))
+end
+
+-- Stormwind's harbor, both ways. The ramp down to it climbs through three map tiles, and the graph held one of
+-- its diagonals downhill only: the bake asked the climb limit of the two corner cells a diagonal passes beside,
+-- where the search asks it of the diagonal's own ends. A walk up from the dock went under the city and up through
+-- the mage tower's foundation, 1,278 yd for 796.
+do
+	local DOCK = { x = -8640.8, y = 1333.3, z = 6.0 } -- the dock's boarding point (Data/Routes.lua)
+	local CANALS = { x = -8759.1, y = 894.0, z = 102 } -- where a player stood: Stormwind City 47.7, 65.9
+	local _, down = walk(0, CANALS, DOCK)
+	local up, back = walk(0, DOCK, CANALS)
+	local best = assert(flat(0, DOCK, CANALS, 400000))
+	assert(down <= best * 1.1 and back <= best * 1.1, ("%.0f down, %.0f up, the grid's %.0f"):format(down, back, best))
+	for i = 2, #up - 1 do
+		assert(up[i].z < 110, ("the walk up from the dock climbs to z %.0f"):format(up[i].z))
+	end
+end
+
+-- The way back from every place to its hub is held to the grid's walk too: the graph's edges are one-way, and a
+-- walk it has only downhill shows on the way up.
+do
+	local worst = 0
+	for _, data in pairs(cities) do
+		local hub = point(data.hub)
+		for _, place in ipairs(data.places) do
+			local goal = point(place)
+			local there = Path.FindSync(data.map, hub, goal)
+			if there and not there.unmapped then
+				local _, home = walk(data.map, goal, hub)
+				local best = flat(data.map, goal, hub, 400000)
+				if best then
+					worst = math.max(worst, home / best)
+					assert(
+						home <= best * COST + SLACK,
+						("%s back to its hub costs %.0f, the grid %.0f"):format(place[1], home, best)
+					)
+				end
+			end
+		end
+	end
+	assert(worst < COST, worst)
+end
+
+-- With no height at either end a walk starts and ends where people are (Data/People.lua), not on the open terrain
+-- under Stormwind and Orgrimmar or the mountain over Ironforge. Counted against the heights the server stores:
+-- from the hub to its sixty places the walk started on the wrong floor 47 times in Stormwind, 39 in Ironforge and
+-- 37 in Orgrimmar. The few ends still wrong are places with people on two floors at one spot.
+do
+	local WRONG = { Stormwind = { 0, 5 }, Ironforge = { 0, 3 }, Orgrimmar = { 3, 15 } }
+	for city, most in pairs(WRONG) do
+		local data = cities[city]
+		local starts, ends = 0, 0
+		for _, place in ipairs(data.places) do
+			local points = Path.FindSync(data.map, { x = data.hub[2], y = data.hub[3] }, { x = place[2], y = place[3] })
+			if points and #points >= 3 then
+				starts = starts + (abs(points[2].z - data.hub[4]) > 12 and 1 or 0)
+				ends = ends + (abs(points[#points - 1].z - place[4]) > 12 and 1 or 0)
+			end
+		end
+		assert(starts <= most[1], ("%s: %d walks with no height start off the hub's floor"):format(city, starts))
+		assert(ends <= most[2], ("%s: %d walks with no height end off the place's floor"):format(city, ends))
+	end
 end
 
 -- A pier is walked, not swum (#889): Menethil's north pier to its south one, with no height to start from.

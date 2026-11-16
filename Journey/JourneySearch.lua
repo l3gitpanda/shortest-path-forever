@@ -76,8 +76,23 @@ local function Here()
 	if not (x and y and map) then
 		return nil
 	end
-	local z = ns.Floor and ns.Floor.Height(map, x, y) or nil
-	return { map = map, x = x, y = y, z = z, band = z == nil and ns.Band and ns.Band.At(map, x, y) or nil }
+	local z, guessed, band
+	if ns.Floor then
+		z, guessed = ns.Floor.Height(map, x, y)
+	end
+	if (z == nil or guessed) and ns.Band then
+		band = ns.Band.At(map, x, y)
+	end
+	-- A floor chosen for the people on it and not walked onto (Floor.lua) gives way to a band that does not hold it:
+	-- the band is a measurement.
+	if z and band then
+		if ns.Band.Holds(band, z) then
+			band = nil
+		else
+			z = nil
+		end
+	end
+	return { map = map, x = x, y = y, z = z, band = band }
 end
 
 -- Cancelled searches leave both batches paused with their settled costs.

@@ -1136,6 +1136,122 @@ local function locate(st, x, y)
 	return floor(gx / C) * st.ny + floor(gy / C), (gx % C) * C + gy % C
 end
 
+-- Where people stand (Data/People.lua): the NPCs with a service or a quest that hold still, one a 16 yd square and
+-- storey. The client gives no height for the player and a map click has none, so such a point could stand on any
+-- surface at its spot, and the cheapest walk decided which. Under and over the capitals that was most often a
+-- surface nobody is on: the open terrain forty yards under Stormwind's streets, which has no walls and so is always
+-- the shorter way, or the mountain top over Ironforge. From the flight master to sixty NPCs, with no heights, the
+-- walk started on the wrong floor 47 times in Stormwind and 39 in Ironforge. A player on a street in the Canals was
+-- planned a walk to the harbor through the city wall (in game, 1.60.1).
+-- A surface has people when such an NPC stands within FAR yards of it and LEVEL yards of its height. Among the
+-- surfaces a point with no height could be on, the ones whose people are nearest are kept, give or take SLACK:
+-- the street with a guard fifty yards off, not the ground under it with nobody. A surface with people within
+-- CLOSE is kept whatever the others have: the hall of Lordaeron's ruins and the Undercity under it are both where
+-- people are. So is a surface any other creature stands within CLOSE of (the same file's Creatures): a cave under
+-- a camp is a place players go, and of the creatures in such caves the people alone would have set three in ten
+-- aside. Where no surface has people, or all have them as near, nothing changes. Nothing is added to the map or
+-- taken from it: a walk still crosses any surface it leads over, and a point with a height stands where its height
+-- says.
+local FAR, LEVEL, SLACK, CLOSE = 120, 12, 24, 48
+local NOBODY = {}
+
+-- Cluster k's People or Creatures as a flat list of x, y, height, parsed once.
+local function standers(st, kind, k)
+	local cache = st.standers
+	if not cache then
+		cache = { People = {}, Creatures = {} }
+		st.standers = cache
+	end
+	local list = cache[kind][k]
+	if not list then
+		list = NOBODY
+		local data = ns[kind] and ns[kind][st.map]
+		local text = data and data[k + 1]
+		if text then
+			list = {}
+			for x, y, z in text:gmatch("(%S+) (%S+) (%S+)") do
+				list[#list + 1], list[#list + 2], list[#list + 3] = tonumber(x), tonumber(y), tonumber(z)
+			end
+		end
+		cache[kind][k] = list
+	end
+	return list
+end
+
+-- How far the nearest of a kind stand from a node on its level, in yards on the map; nil when none are within reach.
+local function nearest(st, kind, reach, k, node)
+	if not (ns[kind] and ns[kind][st.map]) then
+		return nil
+	end
+	local C = st.C
+	local lc = node < C * C and node or st.at[k][node + 1]
+	local x = st.x0 + (floor(k / st.ny) * C + floor(lc / C) + 0.5) * st.cs
+	local y = st.y0 + ((k % st.ny) * C + lc % C + 0.5) * st.cs
+	local h = st.z[k][node + 1]
+	local best = reach * reach
+	local found = false
+	-- A reach is far below a tile, so the corners of the box around the point name every cluster it reaches.
+	local a, b, c
+	for dx = -reach, reach, 2 * reach do
+		for dy = -reach, reach, 2 * reach do
+			local other = locate(st, x + dx, y + dy)
+			if other and other ~= a and other ~= b and other ~= c then
+				a, b, c = other, a, b
+				local list = standers(st, kind, other)
+				for i = 1, #list, 3 do
+					if abs(list[i + 2] - h) <= LEVEL then
+						local d = (list[i] - x) ^ 2 + (list[i + 1] - y) ^ 2
+						if d <= best then
+							best, found = d, true
+						end
+					end
+				end
+			end
+		end
+	end
+	return found and sqrt(best) or nil
+end
+
+-- How far the nearest people on a node's level stand from it; nil when none are within FAR.
+---@param node number a node of cluster k, which must be decoded
+---@return number?
+local function people(st, k, node)
+	return nearest(st, "People", FAR, k, node)
+end
+
+-- Whether any other creature stands within CLOSE of a node, on its level.
+---@param node number a node of cluster k, which must be decoded
+---@return boolean
+local function creatures(st, k, node)
+	return nearest(st, "Creatures", CLOSE, k, node) ~= nil
+end
+
+-- Of count surfaces, the ones a point with no height may stand on: at(i) is surface i's cluster and node. The
+-- answer is the indices kept, or nil when nobody is near any of them and so nothing is to choose.
+---@param count number
+---@param at fun(index: number): number, number
+---@return number[]?
+local function peopled(st, count, at)
+	local found, best = {}, nil
+	for i = 1, count do
+		found[i] = people(st, at(i))
+		if found[i] and (not best or found[i] < best) then
+			best = found[i]
+		end
+	end
+	if not best then
+		return nil
+	end
+	local reach = max(best + SLACK, CLOSE)
+	local kept = {}
+	for i = 1, count do
+		if (found[i] and found[i] <= reach) or creatures(st, at(i)) then
+			kept[#kept + 1] = i
+		end
+	end
+	return kept
+end
+
 -- The walkable node of local cell lc a point at height h stands on (the base surface when h is unknown), and the
 -- height gap to it.
 local function standing(st, k, lc, h)
@@ -1947,6 +2063,9 @@ ns.PathGrid = {
 	entrance = entrance,
 	locate = locate,
 	standing = standing,
+	people = people,
+	creatures = creatures,
+	peopled = peopled,
 	ground = ground,
 	snap = snap,
 	roads = roads,

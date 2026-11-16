@@ -161,16 +161,58 @@ do
 	assert(not jns.OnWalk(line, { map = 0, x = 50, y = 2, z = -42 }), "a floor below it is not on it")
 end
 
+-- A floor the tracker chose for the people on it (Floor.Height's second value) is a guess: the journey starts on
+-- it unless the range checks to the NPCs around (Band.lua) place the player elsewhere, and then on what they say.
+do
+	local asked
+	-- Where a journey's search starts, on a fresh client: a search from the same place is not made twice.
+	local function start(guessed, measured)
+		local driver = assert(loadfile("tests/journey_driver.lua"))()
+		local jns = driver.ns
+		asked = 0
+		jns.Floor = {
+			Sample = function() end,
+			Height = function()
+				return 102, guessed
+			end,
+		}
+		jns.Band = {
+			At = function()
+				asked = asked + 1
+				return measured
+			end,
+			Holds = function(band, z)
+				return z >= band.lo and z <= band.hi
+			end,
+		}
+		driver.begin({ map = 0, x = -8759, y = 894 }, { map = 0, x = -8700, y = 894 })
+		return assert(driver.path.batches[1], "the journey searched").from
+	end
+	local from = start(true, nil)
+	assert(from.z == 102 and from.band == nil and asked > 0, "no band: the guessed floor, and the band was asked")
+	from = start(true, { lo = 96, hi = 108 })
+	assert(from.z == 102 and from.band == nil, "a band that holds the guessed floor: the floor")
+	local under = { lo = 54, hi = 66 }
+	from = start(true, under)
+	assert(from.z == nil and from.band == under, "a band that does not: the band, not the guess")
+	from = start(nil, under)
+	assert(from.z == 102 and from.band == nil and asked == 0, "a floor walked onto is not asked of the band")
+end
+
 -- A goal in the Undercity is not reached from the ruins' hall above it, and is once you stand on its floor; where the
--- floor is unknown the spot alone decides.
+-- floor is unknown, or only guessed from where people stand, the spot alone decides.
 do
 	local driver = assert(loadfile("tests/journey_driver.lua"))()
 	local jns = driver.ns
 	local tracked = 60
+	local guessed
 	jns.Floor = {
 		Sample = function() end,
-		Height = function()
-			return tracked
+		Height = function(_, _, _, walked)
+			if walked and guessed then
+				return nil
+			end
+			return tracked, guessed
 		end,
 	}
 	driver.move({ map = 0, x = 1588, y = 237 })
@@ -184,6 +226,10 @@ do
 	jns.StartJourney({ map = 0, x = 1590, y = 237, z = -43.1 })
 	driver.update(0.2)
 	assert(not jns.JourneyGoal(), "with the floor unknown the spot decides")
+	tracked, guessed = 60, true
+	jns.StartJourney({ map = 0, x = 1590, y = 237, z = -43.1 })
+	driver.update(0.2)
+	assert(not jns.JourneyGoal(), "a floor guessed from its people is not held against arriving")
 end
 
 -- A spot picked on the Undercity's map is on the city's floor; one on Tirisfal's names the surface.

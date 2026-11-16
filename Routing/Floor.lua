@@ -26,6 +26,7 @@ local NEAR = 8 -- yd from the last sample within which Height still answers: a s
 local JUMP = 30 -- yd since the last sample: a hearth, teleport, landing or loading screen; the floor is unknown again
 local REACH = 6 -- cells between samples beyond which the step is a jump too
 local RISE = 4 -- a fall lands on the highest surface at most this many yards above the floor it left
+local FALL = 30 -- and at most this many below it: further down is a floor the map lacks here, not a fall
 local LIFT = 10 -- yd from a lift's landing: a lift changes floor without moving, so the floor is unknown there
 local FIRST_LIFT = 1001 -- Data/Transports.lua numbers lift and tram landings from here
 
@@ -41,6 +42,7 @@ local FIRST_LIFT = 1001 -- Data/Transports.lua numbers lift and tram landings fr
 ---@field x number last sample
 ---@field y number
 ---@field nodes SPFFloorSurface[] the surfaces you may be on
+---@field guessed boolean? they were chosen for their people, on this sample or one the steps since lead back to
 
 ---@type SPFFloorState?
 local here
@@ -120,11 +122,49 @@ local function Fall(st, nodes, gx, gy)
 	end
 	local best
 	for _, s in ipairs(Surfaces(st, gx, gy)) do
-		if s.z <= top + RISE and (not best or s.z > best.z) then
+		if s.z <= top + RISE and s.z >= top - FALL and (not best or s.z > best.z) then
 			best = s
 		end
 	end
 	return best and { best } or {}
+end
+
+-- Where the people are (PathGrid.lua's peopled). The floors a sample could be on are narrowed to the ones whose
+-- people are nearest or that other creatures stand on, when people stand near any of them. And a floor with nobody
+-- and nothing near it is not taken up without a step onto it (a first sample, a fall, a step the map does not have)
+-- while a surface beside it has people: the map does not hold every doorway and shop floor, and the ground under
+-- Stormwind's streets or the mountain over Ironforge was what a sample found in their place. The floor is unknown
+-- there instead, and a walk starts where the people are. A floor walked onto step by step is believed whoever
+-- stands on it. Also returns whether floors were set aside for their people: that is a guess, where the steps are
+-- a measurement.
+local function Peopled(st, nodes, stepped, gx, gy)
+	local kept = Grid.peopled(st, #nodes, function(i)
+		return nodes[i].k, nodes[i].node
+	end)
+	if kept then
+		for i, index in ipairs(kept) do
+			kept[i] = nodes[index]
+		end
+		return kept, #kept < #nodes
+	end
+	if stepped then
+		return nodes, false
+	end
+	for _, s in ipairs(nodes) do
+		if Grid.creatures(st, s.k, s.node) then
+			return nodes, false
+		end
+	end
+	for dx = -1, 1 do
+		for dy = -1, 1 do
+			for _, s in ipairs(Surfaces(st, gx + dx, gy + dy)) do
+				if Grid.people(st, s.k, s.node) then
+					return {}, false
+				end
+			end
+		end
+	end
+	return nodes, false
 end
 
 -- A lift changes floor without moving you on the map.
@@ -203,9 +243,11 @@ function Floor.Sample(map, x, y)
 		return
 	end
 	local nodes
+	local stepped = false
 	if last then
 		nodes = Step(st, last.nodes, ox, oy, gx, gy, steps + 1)
-		if #nodes == 0 then
+		stepped = #nodes > 0
+		if not stepped then
 			nodes = Fall(st, last.nodes, gx, gy)
 		end
 	end
@@ -224,25 +266,33 @@ function Floor.Sample(map, x, y)
 			nodes = wet
 		end
 	end
-	here = { map = map, gx = gx, gy = gy, x = x, y = y, nodes = nodes }
+	local kept, chosen = Peopled(st, nodes, stepped, gx, gy)
+	local guessed = chosen or (stepped and last ~= nil and last.guessed) or nil
+	here = { map = map, gx = gx, gy = gy, x = x, y = y, nodes = kept, guessed = guessed }
 end
 
 ---The height of the floor you are on at (x, y) on map, when it is known: nil while the surfaces you may be on lie on
----more than one floor, away from the last sample, or not followed.
+---more than one floor, away from the last sample, or not followed. The second value is true when the floor was
+---chosen for the people on it rather than walked onto: likely, not measured. With walked, such a floor is no answer.
 ---@param map number
 ---@param x number
 ---@param y number
+---@param walked boolean?
 ---@return number?
-function Floor.Height(map, x, y)
+---@return boolean? guessed
+function Floor.Height(map, x, y, walked)
 	local h = here
-	if not h or h.map ~= map or #h.nodes == 0 or (h.x - x) ^ 2 + (h.y - y) ^ 2 > NEAR ^ 2 then
+	if not h or h.map ~= map or #h.nodes == 0 or (h.x - x) ^ 2 + (h.y - y) ^ 2 > NEAR ^ 2 or (walked and h.guessed) then
 		return nil
 	end
 	local low, high = huge, -huge
 	for _, s in ipairs(h.nodes) do
 		low, high = min(low, s.z), max(high, s.z)
 	end
-	return high - low <= SAME and high or nil
+	if high - low > SAME then
+		return nil
+	end
+	return high, h.guessed
 end
 
 -- Indoors, where floors stack, the floor is followed whenever you move, so a journey planned there starts on it. A

@@ -266,12 +266,13 @@ local function Near(node, reach)
 		return false
 	end
 	-- The goal under or over you is not reached: crossing the Ruins of Lordaeron's hall above a stop in the Undercity
-	-- never arrives there. Where the floor is unknown, the spot alone decides, as before. Only the goal: a dock's or
-	-- a landing's height is the transport's, and boarding and landing have their own tests.
+	-- never arrives there. Where the floor is unknown, or only guessed from the people on it and not walked onto,
+	-- the spot alone decides. Only the goal: a dock's or a landing's height is the transport's, and boarding and
+	-- landing have their own tests.
 	local atGoal = goal and node.z and node.map == goal.map and node.x == goal.x and node.y == goal.y
 	local last = result and result.legs[#result.legs]
 	local mapped = not (last and last.walkPoints and last.walkPoints.unmapped) -- past the map no floor is followed
-	local height = atGoal and mapped and map and ns.Floor and ns.Floor.Height(map, x, y)
+	local height = atGoal and mapped and map and ns.Floor and ns.Floor.Height(map, x, y, true)
 	return not (height and math.abs(height - node.z) > OTHER_FLOOR)
 end
 

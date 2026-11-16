@@ -180,6 +180,16 @@ bold-lead bullets) before its `v*` tag, since the release publishes it as the no
   height, so a range check to a creature with one idle spawn on the map is what bounds it (`Routing/Band.lua`).
   QuestieDB's spawns are zone fractions with no height and it records no movement type, so it cannot say which NPCs
   hold still.
+- WFA-28: `Data/People.lua` (where people and other creatures are): the same classic-db spawns and bake. `People`
+  keeps the still creatures with a service or a quest (`NpcFlags` set, not flying), one point to a 16 yd square and
+  8 yd storey, with the server's height; `Creatures` keeps the other spawns a player comes to (quest objects, and
+  creatures without `UNIT_FLAG_NOT_SELECTABLE` that do not fly) that stand on a floor with another over or under it,
+  within 168 yd of people. A point with no height (the player, a map click) stands on the surface at its spot whose
+  people are nearest or that creatures stand on (`Routing/PathGrid.lua` `peopled`), instead of the cheapest: the open
+  terrain under Stormwind's streets and the mountain over Ironforge are surfaces of the same cells and were what the
+  cheapest was, while a cave under a camp stays a place. It is a prior over surfaces the walking map already holds,
+  never geometry, and any known height outranks it. QuestieDB's spawns are zone fractions with no height, so they
+  cannot say which of two floors anything is on.
 - WFA-28: `Data/Teleports.lua` (class teleports and bind items): wago.tools spell and item tables with classic-db
   `spell_target_position` landings; neither database holds spell effects or landings. Known spells, reagent
   counts, cooldowns, cast times and the bind point are read from the client.
