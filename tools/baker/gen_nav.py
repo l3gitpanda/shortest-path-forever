@@ -786,12 +786,15 @@ def steep_node_ok(grid, u, v):
 
 def bit_step(g, grid, cuts, ux, uy, vx, vy):
     """An orthogonal step a diagonal detour may take: open, and a steep step only with equal stored heights, exactly
-    as the decoder leaves a one-way steep step as its own record instead of feeding the detour."""
+    as the decoder leaves a one-way steep step as its own record instead of feeding the detour.
+
+    The climb limit is not asked of a detour's legs, as the decoder does not ask it (PathGrid.lua's bitStep): a
+    diagonal is charged for the rise between its own two ends, and the corner cell it passes beside may stand a
+    flight of stairs higher. Asking it here left the graph without a diagonal the grid walks, and the ramp from
+    Stormwind's harbor was baked downhill only: a walk up from the dock went under the city instead."""
     if not step_ok(g, cuts, ux, uy, vx, vy):
         return False
     u, v = ux * GH + uy, vx * GH + vy
-    if not steep_node_ok(grid, u, v):
-        return False
     if grid[u] == 3 or grid[v] == 3:
         return stored_z(u) == stored_z(v)
     return True

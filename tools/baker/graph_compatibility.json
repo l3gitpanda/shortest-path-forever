@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "generator": "7e7384212854da4bc25e791c0bb8e212a4807a48f2e0f16f24c9f28026d83f7d",
+  "generator": "61692198a35123bd3e739502169fe9340d6c63fa6da8ac11e88bf7421a5c18e4",
   "collision_generators": [
     "35d8a83e5bf1b7cde01f22c1b4baa7154b33c15aa07854ff731e8dcce96149ec"
   ],
-  "reason": "#910 changes HPA entrance selection and graph serialization only, and the spanner in kept_edges changes only which intra-cluster edges the graph keeps; all collision fields remain byte-identical."
+  "reason": "#910 changes HPA entrance selection and graph serialization only, the spanner in kept_edges changes only which intra-cluster edges the graph keeps, and bit_step changes only which diagonals the graph walks, to the ones the decoder already opens; all collision fields remain byte-identical."
 }

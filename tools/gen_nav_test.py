@@ -397,6 +397,24 @@ class GraphLegalityTest(unittest.TestCase):
         self.assertNotIn((u, v), edges)
         self.assertIn((v, u), edges)
 
+    def test_a_diagonal_is_judged_by_its_own_ends_not_its_corners(self):
+        # A stair climbing diagonally: eight yards up over the diagonal, well inside the limit, while the two
+        # corner cells beside it stand a flight higher. The decoder opens the diagonal through either corner and
+        # charges the climb between its ends, so the graph must walk it too, both ways.
+        c = gen_nav.CELLS
+        a, b = 10 * c + 10, 11 * c + 11
+        corners = {11 * c + 10: (1, 22.0), 10 * c + 11: (1, 22.0)}
+        heights = {a: (1, 10.0), b: (1, 18.0), **corners}
+        self.assertIn(b, self.steps(heights, a), "up the stair")
+        self.assertIn(a, self.steps(heights, b), "and down it")
+        # The corners themselves are still too high to step onto from the foot of the stair.
+        for corner in corners:
+            self.assertNotIn(corner, self.steps(heights, a))
+        # A diagonal whose own ends are too far apart in height stays shut uphill.
+        cliff = {a: (1, 10.0), b: (1, 30.0), 11 * c + 10: (1, 10.0), 10 * c + 11: (1, 10.0)}
+        self.assertNotIn(b, self.steps(cliff, a))
+        self.assertIn(a, self.steps(cliff, b))
+
     def test_a_two_way_record_with_a_steep_end_is_one_way(self):
         # The bake writes a steep pair both ways as a record so the decoder can decide its direction by stored height;
         # the graph must apply that rule to the record, or it climbs a face the grid refuses.

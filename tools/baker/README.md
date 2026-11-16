@@ -112,7 +112,9 @@ The Python generator builds HPA* graphs and 8-yard grids from Detour polygons. I
 spanner of its entrances (`kept_edges`): pairs are taken shortest first and an edge is dropped only while the
 edges already kept walk its pair within 2%, so no walk through a cluster is more than 2% longer in the graph than
 on the grid. An entrance keeps at most the 63 edges its record counts; past that it reaches the rest through its
-nearest, and the bake fails if that leaves a pair more than a tenth long. It keeps overlapping walkable
+nearest, and the bake fails if that leaves a pair more than a tenth long. A diagonal step is open when the two
+orthogonal detours round it are, and the climb limit is asked of the diagonal's own two ends only (`bit_step`), as
+the decoder asks it: the corner of a turning stair stands a flight above both. It keeps overlapping walkable
 floors, drops underwater floors, and stores directed costs for ordinary swimming and walking on water.
 Ground a player cannot reach is removed over the supplied crop or map: every disconnected component that holds
 none of the map's fixed places with a height (flight masters, docks and lift ends, portal ends and teleport landings,
